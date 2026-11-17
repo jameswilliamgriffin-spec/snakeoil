@@ -341,6 +341,16 @@ section:focus {
   border-bottom: 1px solid var(--rule);
   padding-bottom: 3px;
 }
+.external-arrow::after {
+  content: '';
+  display: inline-block;
+  width: 0.7em;
+  height: 0.7em;
+  margin-inline-start: 0.45em;
+  vertical-align: 0.04em;
+  background: currentColor;
+  clip-path: polygon(42% 0, 100% 0, 100% 58%, 87% 58%, 87% 22%, 9% 100%, 0 91%, 78% 13%, 42% 13%);
+}
 
 /* letter roll — each glyph carries its own duplicate as a text-shadow */
 .roll {
@@ -710,10 +720,6 @@ button:focus-visible .roll__c > i {
   position: absolute;
   z-index: 2;
 }
-.hero__meta--a {
-  top: calc(var(--frame-h) + 22px);
-  left: var(--gutter);
-}
 .hero__meta--b {
   top: calc(var(--frame-h) + 22px);
   left: var(--gutter);
@@ -766,9 +772,6 @@ button:focus-visible .roll__c > i {
   .hero__media-in {
     height: 116%;
     margin-top: -4svh;
-  }
-  .hero__meta--a {
-    top: 17svh;
   }
   .hero__meta--b {
     top: 17svh;
@@ -1521,6 +1524,9 @@ button:focus-visible .roll__c > i {
   }
   .footer__top {
     justify-self: end;
+  }
+  .footer__mark {
+    font-size: clamp(140px, calc(var(--vw) * 15), 260px);
   }
 }
 
