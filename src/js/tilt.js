@@ -9,6 +9,7 @@ const lerp = (a, b, t) => a + (b - a) * t;
 function initMobileCycle(card, media, clip) {
   let inView = !('IntersectionObserver' in window);
   let paused = false;
+  let autoplayBlocked = false;
   let timer;
 
   const showPhoto = () => {
@@ -16,21 +17,27 @@ function initMobileCycle(card, media, clip) {
     clip.pause();
   };
 
+  const playClip = async photoTimer => {
+    attach(clip, clip.dataset.hoverVideo);
+    clip.currentTime = 0;
+    try {
+      await clip.play();
+    } catch (error) {
+      if (timer === photoTimer) {
+        autoplayBlocked = error.name === 'NotAllowedError';
+        setPaused(true);
+      }
+      return;
+    }
+    if (timer !== photoTimer) return;
+    autoplayBlocked = false;
+    card.classList.add('is-alt');
+    timer = setTimeout(scheduleClip, 4000);
+  };
+
   const scheduleClip = () => {
     showPhoto();
-    const photoTimer = setTimeout(async () => {
-      attach(clip, clip.dataset.hoverVideo);
-      clip.currentTime = 0;
-      try {
-        await clip.play();
-      } catch {
-        if (timer === photoTimer) setPaused(true);
-        return;
-      }
-      if (timer !== photoTimer) return;
-      card.classList.add('is-alt');
-      timer = setTimeout(scheduleClip, 4000);
-    }, 2000);
+    const photoTimer = setTimeout(() => playClip(photoTimer), 2000);
     timer = photoTimer;
   };
 
@@ -59,7 +66,15 @@ function initMobileCycle(card, media, clip) {
   }
   document.addEventListener('visibilitychange', sync);
   media.removeAttribute('aria-pressed');
-  media.addEventListener('click', () => setPaused(!paused));
+  media.addEventListener('click', () => {
+    const retry = autoplayBlocked && paused;
+    setPaused(!paused);
+    if (retry && timer !== undefined) {
+      // A browser that rejects autoplay needs play() within the tap handler.
+      clearTimeout(timer);
+      playClip(timer);
+    }
+  });
   setPaused(false);
 }
 
@@ -82,7 +97,9 @@ export function initDrinks({ reduced }) {
 
     const isButton = media.matches('button');
     const videoDefault = card.hasAttribute('data-video-default');
+    const stillLabel = media.getAttribute('aria-label');
     let inView = !('IntersectionObserver' in window);
+    let autoplayBlocked = false;
 
     const sync = () => {
       const alt = pinned || hover;
@@ -94,7 +111,12 @@ export function initDrinks({ reduced }) {
         if (videoDefault ? !alt && inView && !document.hidden : alt) {
           attach(clip, clip.dataset.hoverVideo);
           if (!videoDefault) clip.currentTime = 0;
-          clip.play().catch(() => {});
+          clip.play().catch(error => {
+            if (videoDefault && !fine && error.name === 'NotAllowedError') {
+              autoplayBlocked = true;
+              media.setAttribute('aria-label', 'Play the cocktail clip');
+            }
+          });
         } else {
           clip.pause();
         }
@@ -102,14 +124,20 @@ export function initDrinks({ reduced }) {
     };
 
     if (clip && videoDefault && !reduced) {
-      clip.addEventListener('playing', () => card.classList.add('is-video-playing'));
+      clip.addEventListener('playing', () => {
+        if (autoplayBlocked) {
+          autoplayBlocked = false;
+          media.setAttribute('aria-label', stillLabel);
+        }
+        card.classList.add('is-video-playing');
+      });
       clip.addEventListener('pause', () => card.classList.remove('is-video-playing'));
       clip.addEventListener('error', () => card.classList.remove('is-video-playing'));
       if ('IntersectionObserver' in window) {
         const observer = new IntersectionObserver(([entry]) => {
           inView = entry.isIntersecting;
           sync();
-        }, { rootMargin: '25% 0%' });
+        }, { rootMargin: fine ? '25% 0%' : '0px' });
         observer.observe(media);
       }
       document.addEventListener('visibilitychange', sync);
@@ -118,7 +146,7 @@ export function initDrinks({ reduced }) {
 
     if (isButton) {
       media.addEventListener('click', () => {
-        pinned = !pinned;
+        pinned = autoplayBlocked ? false : !pinned;
         sync();
       });
     }

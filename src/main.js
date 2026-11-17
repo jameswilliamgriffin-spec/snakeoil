@@ -31,7 +31,7 @@ function scrollToTarget(hash, { delay = 0 } = {}) {
   if (!target) return;
   const go = () => {
     if (lenis) lenis.scrollTo(hash === '#top' ? 0 : target, { duration: 1.6, easing: t => 1 - Math.pow(1 - t, 4) });
-    else target.scrollIntoView({ behavior: 'auto', block: 'start' });
+    else target.scrollIntoView({ behavior: reduced ? 'instant' : 'smooth', block: 'start' });
     if (hash !== '#top') {
       target.setAttribute('tabindex', '-1');
       target.focus({ preventScroll: true });

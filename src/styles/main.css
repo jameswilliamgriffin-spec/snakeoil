@@ -409,6 +409,13 @@ button:focus-visible .roll__c > i {
   77% { transform: translate3d(-17px, -76px, 0); }
   88% { transform: translate3d(112px, 139px, 0); }
 }
+@media (pointer: coarse) {
+  .grain {
+    inset: 0;
+    animation: none;
+    will-change: auto;
+  }
+}
 
 /* ───────── preloader ───────── */
 .preloader {
@@ -704,6 +711,7 @@ button:focus-visible .roll__c > i {
   overflow: hidden;
 }
 .hero__media-in {
+  position: relative;
   height: 86%;
   aspect-ratio: 3 / 4;
   margin-top: -16svh;
@@ -715,6 +723,27 @@ button:focus-visible .roll__c > i {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+.hero__media-in.is-poster-fallback .hero__video {
+  opacity: 0;
+}
+.hero__media-in.is-poster-fallback::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url('/media/video/hero-glass-poster.webp') center / cover no-repeat;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hero__media-in.is-poster-fallback::after {
+    animation: hero-poster-drift 7s ease-in-out infinite alternate;
+    animation-play-state: paused;
+  }
+  .hero__media-in.is-poster-fallback.is-in-view::after {
+    animation-play-state: running;
+  }
+}
+@keyframes hero-poster-drift {
+  to { transform: translate3d(1%, -1.2%, 0) scale(1.12); }
 }
 .hero__meta {
   position: absolute;

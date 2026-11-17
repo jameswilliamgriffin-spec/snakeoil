@@ -1,12 +1,16 @@
 // Lazy video: sources are attached only when a clip nears the viewport, and playback
 // stops whenever it leaves. With reduced motion the poster frame is all that shows.
 const BASE = '/media/video/';
+const touch = matchMedia('(pointer: coarse)').matches;
+const webm = ['webm', 'video/webm; codecs="vp9"'];
+const mp4 = ['mp4', 'video/mp4'];
 
 /** Attach WebM + MP4 sources to a <video> once. */
 export function attach(v, name) {
   if (v.dataset.loaded) return;
   v.dataset.loaded = '1';
-  for (const [ext, type] of [['webm', 'video/webm; codecs="vp9"'], ['mp4', 'video/mp4']]) {
+  v.muted = true;
+  for (const [ext, type] of touch ? [mp4, webm] : [webm, mp4]) {
     const s = document.createElement('source');
     s.src = `${BASE}${name}.${ext}`;
     s.type = type;
@@ -18,11 +22,18 @@ export function attach(v, name) {
 export function initVideos({ reduced }) {
   if (reduced || !('IntersectionObserver' in window)) return;
   const videos = document.querySelectorAll('video[data-video]');
+  const hero = document.querySelector('.hero__video');
+  const heroMedia = hero?.parentElement;
   const visible = new Set();
+  hero?.addEventListener('playing', () => heroMedia.classList.remove('is-poster-fallback'));
   const sync = v => {
-    if (!document.hidden && visible.has(v)) {
+    const active = !document.hidden && visible.has(v);
+    if (v === hero) heroMedia.classList.toggle('is-in-view', active);
+    if (active) {
       attach(v, v.dataset.video);
-      v.play().catch(() => {});
+      v.play().catch(error => {
+        if (v === hero && error.name !== 'AbortError') heroMedia.classList.add('is-poster-fallback');
+      });
     } else if (!v.paused) {
       v.pause();
     }
@@ -51,7 +62,7 @@ export function initVideos({ reduced }) {
         sync(v);
       }
     },
-    { rootMargin: '25% 25%' }
+    { rootMargin: touch ? '0px' : '25% 25%' }
   );
   videos.forEach(v => io.observe(v));
 

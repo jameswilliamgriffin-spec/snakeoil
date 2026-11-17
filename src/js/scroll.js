@@ -8,12 +8,13 @@ import { wrapLines, splitChars } from './text.js';
 import { jitterReveal } from './distort.js';
 
 gsap.registerPlugin(ScrollTrigger, SplitText, CustomEase);
+ScrollTrigger.config({ ignoreMobileResize: true });
 CustomEase.create('snake', '0.6,0.14,0,1'); // the house curve, same as --ease in CSS
 
 export { gsap, ScrollTrigger };
 
 export function initLenis({ reduced }) {
-  if (reduced) return null;
+  if (reduced || matchMedia('(pointer: coarse)').matches) return null;
   const lenis = new Lenis({ lerp: 0.095, wheelMultiplier: 1 });
   lenis.on('scroll', ScrollTrigger.update);
   gsap.ticker.add(time => lenis.raf(time * 1000));
@@ -143,10 +144,11 @@ export function initSwap({ reduced }) {
   const swap = document.querySelector('[data-swap]');
   if (!swap || reduced) return;
   const root = document.documentElement;
+  const stage = swap.querySelector('.swap__stage');
   const layer = swap.querySelector('.swap__layer--b');
   swap.classList.add('swap--live');
   const update = () => {
-    const vh = innerHeight;
+    const vh = stage.clientHeight;
     const rect = swap.getBoundingClientRect();
     const p = gsap.utils.clamp(0, 1, (-rect.top - vh * 0.18) / vh);
     layer.style.setProperty('--p', p.toFixed(4));
