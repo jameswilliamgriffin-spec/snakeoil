@@ -22,10 +22,16 @@ export function initLenis({ reduced }) {
   return lenis;
 }
 
-const once = (trigger, start = 'top 88%') => ({ trigger, start, once: true });
+const mobileMotion = () => matchMedia('(max-width: 899px)').matches;
+const once = (trigger, start = 'top 88%') => ({
+  trigger,
+  start: mobileMotion() ? 'top bottom+=80' : start,
+  once: true,
+});
 
 /** Sets up hidden states + scroll reveals. Returns the pieces the hero intro needs. */
 export function initReveals({ reduced }) {
+  const mobile = mobileMotion();
   const hero = {
     chars: [],
     lines: [],
@@ -58,14 +64,15 @@ export function initReveals({ reduced }) {
   document.querySelectorAll('[data-reveal="lines"]').forEach(el => {
     const inner = wrapLines(el);
     gsap.set(inner, { yPercent: 115 });
-    gsap.to(inner, { yPercent: 0, duration: 1.2, ease: 'expo.out', stagger: 0.1, scrollTrigger: once(el) });
+    gsap.to(inner, { yPercent: 0, duration: mobile ? 0.65 : 1.2, ease: 'expo.out', stagger: mobile ? 0.05 : 0.1, scrollTrigger: once(el) });
   });
 
   // disjointed reveal: letters arrive out of order with torn edges, then lock in (see distort.js)
   document.querySelectorAll('[data-reveal="jitter"]').forEach(el => {
     const chars = splitChars(el).filter(c => !c.classList.contains('ch--sp'));
     const tl = jitterReveal(el, chars);
-    ScrollTrigger.create({ trigger: el, start: 'top 88%', once: true, onEnter: () => tl.play() });
+    if (mobile) tl.timeScale(1.6);
+    ScrollTrigger.create({ ...once(el), onEnter: () => tl.play() });
   });
   // headings that only glitch (no reveal of their own) still need letters to glitch
   document.querySelectorAll('[data-glitch]:not([data-reveal]):not([data-hero-chars])').forEach(el => {
@@ -77,7 +84,7 @@ export function initReveals({ reduced }) {
   document.querySelectorAll('[data-reveal="chars"]').forEach(el => {
     const chars = splitChars(el);
     gsap.set(chars, { yPercent: 108 });
-    gsap.to(chars, { yPercent: 0, duration: 1.15, ease: 'expo.out', stagger: { each: 0.035 }, clearProps: 'transform', onComplete: () => (el.dataset.settled = ''), scrollTrigger: once(el, 'top 92%') });
+    gsap.to(chars, { yPercent: 0, duration: mobile ? 0.65 : 1.15, ease: 'expo.out', stagger: { each: mobile ? 0.015 : 0.035 }, clearProps: 'transform', onComplete: () => (el.dataset.settled = ''), scrollTrigger: once(el, 'top 92%') });
   });
 
   // running copy: split into lines (re-split on resize / font load), each line masked
@@ -87,20 +94,20 @@ export function initReveals({ reduced }) {
       mask: 'lines',
       autoSplit: true,
       aria: 'none',
-      onSplit: self => gsap.from(self.lines, { yPercent: 108, duration: 1.05, ease: 'expo.out', stagger: 0.07, scrollTrigger: once(el) }),
+      onSplit: self => gsap.from(self.lines, { yPercent: 108, duration: mobile ? 0.6 : 1.05, ease: 'expo.out', stagger: mobile ? 0.035 : 0.07, scrollTrigger: once(el) }),
     });
   });
 
   document.querySelectorAll('[data-reveal="fade"]').forEach(el => {
-    gsap.from(el, { opacity: 0, y: 18, duration: 1.1, ease: 'power3.out', scrollTrigger: once(el) });
+    gsap.from(el, { opacity: 0, y: 18, duration: mobile ? 0.6 : 1.1, ease: 'power3.out', scrollTrigger: once(el) });
   });
 
   // image frames: wipe open from the bottom while the picture settles from a zoom
   document.querySelectorAll('[data-reveal="clip"], .drink__frame').forEach(el => {
     const media = el.matches('.drink__frame') ? el.querySelector('.drink__layer--a') : el.querySelector('picture, video');
     const tl = gsap.timeline({ scrollTrigger: once(el, 'top 90%') });
-    tl.fromTo(el, { clipPath: 'inset(100% 0% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 1.5, ease: 'snake', clearProps: 'clipPath' }, 0);
-    if (media) tl.fromTo(media, { scale: 1.45 }, { scale: 1, duration: 1.9, ease: 'snake' }, 0);
+    tl.fromTo(el, { clipPath: 'inset(100% 0% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: mobile ? 0.7 : 1.5, ease: mobile ? 'power3.out' : 'snake', clearProps: 'clipPath' }, 0);
+    if (media) tl.fromTo(media, { scale: 1.45 }, { scale: 1, duration: mobile ? 0.9 : 1.9, ease: mobile ? 'power3.out' : 'snake' }, 0);
   });
 
   return hero;
@@ -174,31 +181,49 @@ export function initAtmosphere({ reduced }) {
     return;
   }
 
-  const len = () => Math.max(0, track.offsetWidth - document.documentElement.clientWidth);
-  const setLen = () => section.style.setProperty('--len', `${len()}px`);
+  const stage = section.querySelector('.atmos__sticky');
+  const mobile = mobileMotion();
+  const len = () => Math.max(0, track.getBoundingClientRect().width - stage.clientWidth);
+  // Keep the last panel in place briefly before the sticky stage releases on mobile.
+  const setLen = () => section.style.setProperty('--len', `${len() + (mobileMotion() ? stage.clientHeight * 0.25 : 0)}px`);
   setLen();
   ScrollTrigger.addEventListener('refreshInit', setLen);
 
   const slide = gsap.to(track, {
     x: () => -len(),
     ease: 'none',
-    scrollTrigger: { trigger: section, start: 'top top', end: 'bottom bottom', scrub: true, invalidateOnRefresh: true },
+    // Match actual horizontal travel, independent of the browser's expanding toolbar.
+    scrollTrigger: { trigger: section, start: 'top top', end: () => `+=${len()}`, scrub: true, invalidateOnRefresh: true },
   });
 
+  // ignoreMobileResize avoids toolbar jitter, but real changes to the track's layout
+  // (viewport units, orientation or fonts) still need fresh distances and reveal positions.
+  let layout = '';
+  let refreshTimer;
+  const observer = new ResizeObserver(() => {
+    const next = `${track.getBoundingClientRect().width}:${stage.clientWidth}:${stage.clientHeight}`;
+    if (next === layout) return;
+    layout = next;
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => ScrollTrigger.refresh(), 150);
+  });
+  observer.observe(track);
+  observer.observe(stage);
+
   gsap.set(lines, { yPercent: 115 });
-  gsap.to(lines, { yPercent: 0, duration: 1.3, ease: 'expo.out', stagger: 0.12, scrollTrigger: once(section, 'top 55%') });
+  gsap.to(lines, { yPercent: 0, duration: mobile ? 0.7 : 1.3, ease: 'expo.out', stagger: mobile ? 0.06 : 0.12, scrollTrigger: once(section, 'top 55%') });
 
   track.querySelectorAll('.atmos__item').forEach(item => {
     const inner = item.querySelector('[data-hpar]');
     if (inner) {
       gsap.fromTo(inner, { xPercent: -7 }, { xPercent: 7, ease: 'none', scrollTrigger: { trigger: item, containerAnimation: slide, start: 'left right', end: 'right left', scrub: true } });
     }
-    gsap.fromTo(item.querySelector('.frame-img'), { clipPath: 'inset(0% 0% 0% 100%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 1.4, ease: 'snake', scrollTrigger: { trigger: item, containerAnimation: slide, start: 'left 96%', once: true } });
+    gsap.fromTo(item.querySelector('.frame-img'), { clipPath: 'inset(0% 0% 0% 100%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: mobile ? 0.65 : 1.4, ease: mobile ? 'power3.out' : 'snake', scrollTrigger: { trigger: item, containerAnimation: slide, start: mobile ? 'left right+=80' : 'left 96%', once: true } });
   });
 
   section.querySelectorAll('.atmos__panel--quote .stack, .atmos__panel--end .rules').forEach(el => {
     const targets = el.matches('.rules') ? el.children : wrapLines(el);
-    gsap.from(targets, { yPercent: 115, opacity: el.matches('.rules') ? 0 : 1, duration: 1.2, ease: 'expo.out', stagger: 0.1, scrollTrigger: { trigger: el, containerAnimation: slide, start: 'left 85%', once: true } });
+    gsap.from(targets, { yPercent: 115, opacity: el.matches('.rules') ? 0 : 1, duration: mobile ? 0.65 : 1.2, ease: 'expo.out', stagger: mobile ? 0.05 : 0.1, scrollTrigger: { trigger: el, containerAnimation: slide, start: mobile ? 'left right+=80' : 'left 85%', once: true } });
   });
 }
 
