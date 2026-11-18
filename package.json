@@ -11,6 +11,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "assets:images": "node scripts/build-images.mjs",
+    "assets:og": "node scripts/build-og.mjs",
     "assets:video": "bash scripts/build-video.sh",
     "assets:ai-video": "bash scripts/build-ai-video.sh"
   },

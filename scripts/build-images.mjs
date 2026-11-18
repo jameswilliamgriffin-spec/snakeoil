@@ -1,8 +1,7 @@
 // Builds every optimised image the site uses from the originals in ./images.
 // Run: npm run assets:images
 import sharp from 'sharp';
-import opentype from 'opentype.js';
-import { mkdirSync, writeFileSync, copyFileSync, readFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, copyFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 
@@ -104,36 +103,8 @@ const fonts = [
 ];
 for (const [from, to] of fonts) copyFileSync(join(root, 'node_modules', from), join(FONTS, to));
 
-// Open Graph share image, 1200x630: the fizz glass on the right, the wordmark across the bottom.
-{
-  const W = 1200, H = 630;
-  const glass = await sharp(join(SRC, photos.fizz)).resize({ height: 900 }).extract({ left: 40, top: 130, width: 595, height: 630 }).toBuffer();
-  const room = await sharp(join(SRC, photos['room-wide'])).resize({ width: 700 }).extract({ left: 60, top: 0, width: 605, height: 460 }).modulate({ brightness: 0.55 }).toBuffer();
-  // Text is converted to outlines with opentype.js so it never depends on system fonts.
-  const font = file => { const b = readFileSync(join(root, 'node_modules/@fontsource', file)); return opentype.parse(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)); };
-  const grotesk = font('inter-tight/files/inter-tight-latin-800-normal.woff');
-  const label = font('inter-tight/files/inter-tight-latin-500-normal.woff');
-  const fraktur = font('unifrakturcook/files/unifrakturcook-latin-700-normal.woff');
-  // Lay glyphs out by hand (opentype.js chokes on some of Inter Tight's substitution tables).
-  const run = (f, str, x, y, size, ls = 0) => {
-    const k = size / f.unitsPerEm; let d = ''; let cx = x;
-    for (const ch of str) { const g = f.charToGlyph(ch); d += g.getPath(cx, y, size).toPathData(2); cx += g.advanceWidth * k + ls * size; }
-    return { d, width: cx - x - ls * size };
-  };
-  const size = (100 * 1124) / run(grotesk, 'SNAKEOIL', 0, 0, 100, -0.08).width;
-  const word = run(grotesk, 'SNAKEOIL', 38, H - 44, size, -0.08).d;
-  const tag = run(label, 'COCKTAILS & DIVE BAR — KINGS HEATH, BIRMINGHAM', 46, 62, 19, 0.08).d;
-  const mark = run(fraktur, 'So', 40, 190, 130).d;
-  const layers = [
-    { input: room, left: 0, top: 0 },
-    { input: glass, left: 605, top: 0 },
-    { input: Buffer.from(`<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0.3" stop-color="#070a06" stop-opacity="0"/><stop offset="1" stop-color="#070a06" stop-opacity="0.94"/></linearGradient></defs><rect width="${W}" height="${H}" fill="url(#g)"/><path d="${tag}" fill="#eee8d5"/><path d="${mark}" fill="#1fe97a"/><path d="${word}" fill="#eee8d5"/></svg>`), left: 0, top: 0 },
-  ];
-  await sharp({ create: { width: W, height: H, channels: 3, background: '#070a06' } })
-    .composite(layers)
-    .jpeg({ quality: 84, mozjpeg: true })
-    .toFile(join(root, 'public/og.jpg'));
-}
+// Open Graph share image: see build-og.mjs.
+await import('./build-og.mjs');
 
 writeFileSync(join(root, 'src/media-manifest.json'), JSON.stringify(manifest, null, 2));
 console.log('done');

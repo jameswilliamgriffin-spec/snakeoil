@@ -26,7 +26,8 @@ The optimised media is included in `public/`, so you only need these commands if
 
 | Command | What it does |
 | --- | --- |
-| `npm run assets:images` | `images/` → AVIF + WebP at 480/800/1200/1440w, the green duotone for the B&W booth shot, preloader frames, grain tile, favicons, `og.jpg`, and `src/media-manifest.json` (sizes and placeholder colours). |
+| `npm run assets:og` | Rebuilds only the link-preview image `public/og.jpg`: the hero glass centred on black with the So mark over it. |
+| `npm run assets:images` | `images/` → AVIF + WebP at 480/800/1200/1440w, the green duotone for the B&W booth shot, preloader frames, grain tile, favicons, `og.jpg` (via `scripts/build-og.mjs`), and `src/media-manifest.json` (sizes and placeholder colours). |
 | `npm run assets:video` | Real photos → three looping clips (`hero-glass`, `room-haze`, `lineup-haze`). Procedural motion only: breathing zoom, Perlin haze, liquid shimmer, lamp flicker. **Not AI.** |
 | `npm run assets:ai-video` | AI originals in `assets-src/ai/` → seamless loops (`ai-smoke`, `ai-smoke-tall`, `ai-condensation`, `ai-ruby`, `ai-beer`, `ai-hover-slick`, `ai-hover-redflag`). |
 
